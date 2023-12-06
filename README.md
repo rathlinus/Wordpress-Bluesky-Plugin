@@ -3,7 +3,7 @@
 
 ## Introduction
 
-Welcome to the Bluesky Integration plugin for WordPress! This plugin is designed to seamlessly connect your WordPress site with Bluesky, a social networking platform. With this Integration, you can automatically post your WordPress content directly to Bluesky.
+This plugin is designed to seamlessly connect your WordPress site with Bluesky, a social networking platform. With this Integration, you can automatically post your WordPress content directly to Bluesky.
 
 When you publish a new post on WordPress, the plugin shares it on your Bluesky feed. It also supports delayed posting, which means you can schedule your posts to appear on Bluesky at a later time. This is especially useful for final edits.
 
