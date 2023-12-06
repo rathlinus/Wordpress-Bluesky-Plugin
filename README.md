@@ -1,4 +1,3 @@
-
 # Bluesky Integration for WordPress
 
 ## Introduction
