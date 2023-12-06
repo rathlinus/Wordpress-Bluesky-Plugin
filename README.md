@@ -1,5 +1,5 @@
 
-# Bluesky Integration for WordPress: Tutorial
+# Bluesky Integration for WordPress
 
 ## Introduction
 
