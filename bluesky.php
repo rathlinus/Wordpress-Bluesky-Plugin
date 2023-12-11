@@ -2,7 +2,7 @@
 /*
 Plugin Name: Bluesky Social Integration
 Description: Seamlessly Post Your WordPress Content on BlueSky
-Version: 1.1
+Version: 1.2
 Author: Linus Rath
 */
 
@@ -40,7 +40,7 @@ function post_to_bluesky($post_ID) {
 
     // Check if delay is enabled and get the delay duration
     $delay_enabled = get_option('bluesky_delay_enabled', '0'); // Default is '0' (disabled)
-    $delay_duration = 10; // Default delay of 10 seconds
+    $delay_duration = 1; // Default delay of 1 second
 
     if ($delay_enabled === '1') {
         // Get user-specified delay duration in minutes and convert to seconds
@@ -70,33 +70,40 @@ function handle_delayed_post_action($post_ID) {
     $post_title = $post->post_title;
     $post_url = get_permalink($post_ID);
 
+    // Initialize the image path variable
+    $image_path = '';
 
-    $temp_image = null;
-    $use_placeholder = false;
-
-    // Make sure the function download_url() is available
-    if (!function_exists('download_url')) {
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-    }
-
-    // Get the URL of the post's featured image or use a placeholder
+    // Get the URL of the post's featured image
     $post_image_url = get_the_post_thumbnail_url($post_ID, 'full');
     if ($post_image_url === false) {
-        error_log("No featured image found for post ID $post_ID, using placeholder.");
-        $image_path = plugin_dir_path(__FILE__) . 'placeholder.png';
-        $use_placeholder = true; 
-    } else {
-        error_log("Found featured image for post ID $post_ID: $post_image_url");
-        $temp_image = download_url($post_image_url);
-        if (is_wp_error($temp_image)) {
-            error_log("Error downloading image for post ID $post_ID: " . $temp_image->get_error_message());
-            $image_path = plugin_dir_path(__FILE__) . 'placeholder.png';
-            $use_placeholder = true; // Set to true as fallback to the placeholder
+        error_log("No featured image found for post ID $post_ID, checking for fallback image.");
+        $fallback_image_url = get_option('bluesky_fallback_image'); // Get the fallback image URL from the plugin settings
+        
+        if ($fallback_image_url) {
+            $post_image_url = $fallback_image_url;
         } else {
-            $image_path = $temp_image;
+            error_log("No fallback image set, using placeholder.");
+            $post_image_url = plugin_dir_url(__FILE__) . 'placeholder.png'; // Use placeholder if no fallback image is set
         }
     }
 
+    // Ensure that the image URL is converted to a local path
+    if ($post_image_url) {
+        // Check if the URL is a local file or a remote URL
+        if (strpos($post_image_url, site_url()) !== false) {
+            // Convert URL to local file system path
+            $image_path = str_replace(site_url(), untrailingslashit(ABSPATH), $post_image_url);
+        } else {
+            // Handle remote URL (download the image)
+            $temp_image = download_url($post_image_url);
+            if (!is_wp_error($temp_image)) {
+                $image_path = $temp_image;
+            } else {
+                error_log("Error downloading image for post ID $post_ID: " . $temp_image->get_error_message());
+                $image_path = plugin_dir_path(__FILE__) . 'placeholder.png'; // Fallback to placeholder on error
+            }
+        }
+    }
     // Check and upload image
     $image_blob = '';
     if (file_exists($image_path)) {

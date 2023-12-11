@@ -36,6 +36,58 @@ function bluesky_plugin_settings_page() {
             </div>
 
             <div class="bluesky-settings-field">
+        <label for="bluesky_fallback_image">Fallback Image</label>
+        <input type="hidden" id="bluesky_fallback_image" name="bluesky_fallback_image" value="<?php echo esc_attr(get_option('bluesky_fallback_image')); ?>" />
+        <button type="button" class="button" id="bluesky_fallback_image_button">Select Image</button>
+        <div id="bluesky_fallback_image_preview" style="margin-top: 10px;">
+            <?php if (get_option('bluesky_fallback_image')) : ?>
+                <img src="<?php echo esc_url(get_option('bluesky_fallback_image')); ?>" style="max-width: 100px; max-height: 100px;" />
+            <?php endif; ?>
+        </div>
+        <p class="description">Select an image to be used as the fallback when a post has no featured image.</p>
+    </div>
+
+    <script>
+    jQuery(document).ready(function($){
+        $('#bluesky_fallback_image_button').click(function(e) {
+            e.preventDefault();
+
+            var image_frame;
+            if(image_frame){
+                image_frame.open();
+            }
+            image_frame = wp.media({
+                title: 'Select Media',
+                multiple : false,
+                library : {
+                    type : 'image',
+                }
+            });
+
+            image_frame.on('close',function() {
+                var selection =  image_frame.state().get('selection').first().toJSON();
+                $('#bluesky_fallback_image').val(selection.url);
+                $('#bluesky_fallback_image_preview').html('<img src="'+selection.url+'" style="max-width: 100px; max-height: 100px;" />');
+            });
+
+            image_frame.on('open',function() {
+                var selection =  image_frame.state().get('selection');
+                var ids = $('#bluesky_fallback_image').val().split(',');
+                ids.forEach(function(id) {
+                    var attachment = wp.media.attachment(id);
+                    attachment.fetch();
+                    selection.add( attachment ? [ attachment ] : [] );
+                });
+
+            });
+
+            image_frame.open();
+        });
+    });
+    </script>
+
+
+            <div class="bluesky-settings-field">
                 <label for="bluesky_delay_enabled">Enable Delay</label>
                 <input type="checkbox" id="bluesky_delay_enabled" name="bluesky_delay_enabled" value="1" <?php checked(1, get_option('bluesky_delay_enabled'), true); ?> />
                 <p class="description">Enable this to delay the posting of new content to Bluesky. Useful for final edits after publishing..</p>
@@ -65,7 +117,11 @@ function bluesky_plugin_settings_page() {
         <a href="mailto:info@linusrath.de">info@linusrath.de</a> or on Bluesky <a href="https://bsky.app/profile/linusrath.bsky.social">linusrath.bsky.social</a>
     </div>
     <?php
+
+    wp_enqueue_media();
 }
+
+add_action('admin_head', 'bluesky_admin_styles');
 
 function bluesky_admin_styles() {
     ?>
@@ -135,6 +191,7 @@ add_action('admin_head', 'bluesky_admin_styles');
 function bluesky_plugin_settings() {
     register_setting('bluesky-plugin-settings-group', 'bluesky_handle');
     register_setting('bluesky-plugin-settings-group', 'bluesky_password');
+    register_setting('bluesky-plugin-settings-group', 'bluesky_fallback_image');
 }
 
 add_action('admin_init', 'bluesky_plugin_settings');
