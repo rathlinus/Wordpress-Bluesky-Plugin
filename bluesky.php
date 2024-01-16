@@ -2,12 +2,37 @@
 /*
 Plugin Name: Bluesky Social Integration
 Description: Seamlessly Post Your WordPress Content on BlueSky
-Version: 1.2
+Version: 1.3
 Author: Linus Rath
 */
 
-// Admin page setup
 include('admin-page.php');
+
+function bluesky_save_postdata($post_id) {
+    $new_value = isset($_POST['bluesky_field']) && $_POST['bluesky_field'] === 'yes' ? 'yes' : 'no';
+    update_post_meta($post_id, '_bluesky_post_checkbox', $new_value);
+}
+
+add_action('save_post', 'bluesky_save_postdata');
+
+function bluesky_add_custom_box() {
+    add_meta_box(
+        'bluesky_meta_box_id',
+        'BlueSky Post Integration',
+        'bluesky_custom_box_html',
+        'post'
+    );
+}
+add_action('add_meta_boxes', 'bluesky_add_custom_box');
+
+function bluesky_custom_box_html($post) {
+    $value = get_post_meta($post->ID, '_bluesky_post_checkbox', true);
+    ?>
+    <label for="bluesky_field">Post to BlueSky:</label>
+    <input type="checkbox" id="bluesky_field" name="bluesky_field" value="yes" <?php checked($value, 'yes');?>>
+    <?php
+}
+
 
 
 function authenticate_bluesky() {
@@ -33,26 +58,15 @@ function authenticate_bluesky() {
 function post_to_bluesky($post_ID) {
     $post = get_post($post_ID);
 
-    // Check if this is a revision or if the post is not published
-    if (wp_is_post_revision($post_ID) || $post->post_status != 'publish') {
-        return;
-    }
-
-    // Check if delay is enabled and get the delay duration
-    $delay_enabled = get_option('bluesky_delay_enabled', '0'); // Default is '0' (disabled)
-    $delay_duration = 1; // Default delay of 1 second
+    $delay_enabled = get_option('bluesky_delay_enabled', '0'); 
+    $delay_duration = 1;
 
     if ($delay_enabled === '1') {
-        // Get user-specified delay duration in minutes and convert to seconds
-        $user_specified_delay = (int)get_option('bluesky_delay_duration', 1); // Default to 1 minute if not set
-        $delay_duration = max(1, min(30, $user_specified_delay)) * 60; // Ensure the delay is between 1 and 30 minutes
+        $user_specified_delay = (int)get_option('bluesky_delay_duration', 1);
+        $delay_duration = max(1, min(30, $user_specified_delay)) * 60;
     }
 
-    // Schedule the event with the determined delay
     wp_schedule_single_event(time() + $delay_duration, 'bluesky_delayed_post_action', array($post_ID));
-
-    // For debugging
-    error_log("Scheduled post_to_bluesky with delay: " . $delay_duration . " seconds for post ID " . $post_ID);
 }
 
 add_action('publish_post', 'post_to_bluesky');
@@ -61,6 +75,13 @@ add_action('publish_post', 'post_to_bluesky');
 add_action('bluesky_delayed_post_action', 'handle_delayed_post_action');
 
 function handle_delayed_post_action($post_ID) {
+
+    $bluesky_post = get_post_meta($post_ID, '_bluesky_post_checkbox', true);
+    if ($bluesky_post !== 'yes') {
+        return;
+    }
+
+    $temp_image = "";
     $token = authenticate_bluesky();
     if (!$token) {
         return;
@@ -70,41 +91,34 @@ function handle_delayed_post_action($post_ID) {
     $post_title = $post->post_title;
     $post_url = get_permalink($post_ID);
 
-    // Initialize the image path variable
     $image_path = '';
 
-    // Get the URL of the post's featured image
     $post_image_url = get_the_post_thumbnail_url($post_ID, 'full');
     if ($post_image_url === false) {
         error_log("No featured image found for post ID $post_ID, checking for fallback image.");
-        $fallback_image_url = get_option('bluesky_fallback_image'); // Get the fallback image URL from the plugin settings
+        $fallback_image_url = get_option('bluesky_fallback_image');
         
         if ($fallback_image_url) {
             $post_image_url = $fallback_image_url;
         } else {
             error_log("No fallback image set, using placeholder.");
-            $post_image_url = plugin_dir_url(__FILE__) . 'placeholder.png'; // Use placeholder if no fallback image is set
+            $post_image_url = plugin_dir_url(__FILE__) . 'placeholder.png';
         }
     }
 
-    // Ensure that the image URL is converted to a local path
     if ($post_image_url) {
-        // Check if the URL is a local file or a remote URL
         if (strpos($post_image_url, site_url()) !== false) {
-            // Convert URL to local file system path
             $image_path = str_replace(site_url(), untrailingslashit(ABSPATH), $post_image_url);
         } else {
-            // Handle remote URL (download the image)
             $temp_image = download_url($post_image_url);
             if (!is_wp_error($temp_image)) {
                 $image_path = $temp_image;
             } else {
                 error_log("Error downloading image for post ID $post_ID: " . $temp_image->get_error_message());
-                $image_path = plugin_dir_path(__FILE__) . 'placeholder.png'; // Fallback to placeholder on error
+                $image_path = plugin_dir_path(__FILE__) . 'placeholder.png';
             }
         }
     }
-    // Check and upload image
     $image_blob = '';
     if (file_exists($image_path)) {
         $image_content = file_get_contents($image_path);
@@ -125,12 +139,10 @@ function handle_delayed_post_action($post_ID) {
             }
         }
 
-        // Clean up the temporary file
         if ($temp_image && !$use_placeholder) {
             unlink($temp_image);
         }
     }
-    // Create and post embed card
     $embed_card = [
         '$type' => 'app.bsky.embed.external',
         'external' => [
@@ -156,6 +168,8 @@ function handle_delayed_post_action($post_ID) {
             ],
         ]),
     ]);
+
+    update_post_meta($post_ID, '_bluesky_post_checkbox', 'no');
 }
 
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'my_plugin_action_links');
