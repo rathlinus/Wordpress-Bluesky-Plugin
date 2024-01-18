@@ -2,7 +2,7 @@
 /*
 Plugin Name: Bluesky Social Integration
 Description: Seamlessly Post Your WordPress Content on BlueSky
-Version: 1.3
+Version: 1.4
 Author: Linus Rath
 */
 
