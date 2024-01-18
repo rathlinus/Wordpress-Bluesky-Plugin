@@ -26,7 +26,11 @@ function bluesky_add_custom_box() {
 add_action('add_meta_boxes', 'bluesky_add_custom_box');
 
 function bluesky_custom_box_html($post) {
+    // Check if the post has a saved value, otherwise set default to 'yes' for new posts
     $value = get_post_meta($post->ID, '_bluesky_post_checkbox', true);
+    if (empty($value)) {
+        $value = 'yes'; // Default value for new posts
+    }
     ?>
     <label for="bluesky_field">Post to BlueSky:</label>
     <input type="checkbox" id="bluesky_field" name="bluesky_field" value="yes" <?php checked($value, 'yes');?>>
