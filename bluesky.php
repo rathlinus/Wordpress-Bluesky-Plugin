@@ -2,7 +2,7 @@
 /*
 Plugin Name: Bluesky Social Integration
 Description: Seamlessly Post Your WordPress Content on BlueSky
-Version: 1.4
+Version: 1.5
 Author: Linus Rath
 */
 
@@ -25,25 +25,36 @@ function bluesky_add_custom_box() {
 }
 add_action('add_meta_boxes', 'bluesky_add_custom_box');
 
-function bluesky_custom_box_html($post) {
-    // Check if the post has a saved value, otherwise set default to 'yes' for new posts
-    $value = get_post_meta($post->ID, '_bluesky_post_checkbox', true);
-    if (empty($value)) {
-        $value = 'yes'; // Default value for new posts
+add_action('add_meta_boxes', 'bluesky_add_custom_box');
+
+function bluesky_save_default_meta_value($post_id, $post, $update) {
+    if ($post->post_status == 'auto-draft' && get_option('bluesky_auto_post_new', 'no') === '1') {
+        update_post_meta($post_id, '_bluesky_post_checkbox', 'yes');
     }
+}
+add_action('save_post', 'bluesky_save_default_meta_value', 10, 3);
+
+function bluesky_custom_box_html($post) {
+    $is_new_post = $post->post_status == 'auto-draft';
+    $auto_post_enabled = get_option('bluesky_auto_post_new', 'no');
+
+    $should_be_checked = ($is_new_post && $auto_post_enabled === '1') ? 'yes' : 'no';
+
     ?>
     <label for="bluesky_field">Post to BlueSky:</label>
-    <input type="checkbox" id="bluesky_field" name="bluesky_field" value="yes" <?php checked($value, 'yes');?>>
+    <input type="checkbox" id="bluesky_field" name="bluesky_field" value="yes" <?php checked($should_be_checked, 'yes'); ?>>
     <?php
 }
 
 
 
 function authenticate_bluesky() {
+    $server_url = get_option('bluesky_server_url', 'https://bsky.social');
+
     $handle = get_option('bluesky_handle');
     $password = get_option('bluesky_password');
     
-    $response = wp_remote_post('https://bsky.social/xrpc/com.atproto.server.createSession', [
+    $response = wp_remote_post($server_url . '/xrpc/com.atproto.server.createSession', [
         'body' => json_encode([
             'identifier' => $handle,
             'password' => $password,
@@ -60,20 +71,23 @@ function authenticate_bluesky() {
 }
 
 function post_to_bluesky($post_ID) {
-    $post = get_post($post_ID);
+    $bluesky_post = get_post_meta($post_ID, '_bluesky_post_checkbox', true);
+    if ($bluesky_post !== 'yes') {
+        return;
+    }
 
     $delay_enabled = get_option('bluesky_delay_enabled', '0'); 
-    $delay_duration = 1;
-
     if ($delay_enabled === '1') {
         $user_specified_delay = (int)get_option('bluesky_delay_duration', 1);
         $delay_duration = max(1, min(30, $user_specified_delay)) * 60;
+        wp_schedule_single_event(time() + $delay_duration, 'bluesky_delayed_post_action', array($post_ID));
+    } else {
+        handle_delayed_post_action($post_ID);
     }
-
-    wp_schedule_single_event(time() + $delay_duration, 'bluesky_delayed_post_action', array($post_ID));
 }
 
 add_action('publish_post', 'post_to_bluesky');
+
 
 
 add_action('bluesky_delayed_post_action', 'handle_delayed_post_action');

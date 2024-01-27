@@ -7,6 +7,7 @@ function bluesky_plugin_menu() {
 add_action('admin_menu', 'bluesky_plugin_menu');
 
 function bluesky_plugin_delay_settings() {
+    register_setting('bluesky-plugin-settings-group', 'bluesky_auto_post_new');
     register_setting('bluesky-plugin-settings-group', 'bluesky_delay_enabled');
     register_setting('bluesky-plugin-settings-group', 'bluesky_delay_duration');
 }
@@ -23,6 +24,12 @@ function bluesky_plugin_settings_page() {
             <?php settings_fields('bluesky-plugin-settings-group'); ?>
             <?php do_settings_sections('bluesky-plugin-settings-group'); ?>
             
+            <div class="bluesky-settings-field">
+        <label for="bluesky_server_url">Bluesky Server URL</label>
+        <input type="text" id="bluesky_server_url" name="bluesky_server_url" value="<?php echo esc_attr(get_option('bluesky_server_url', 'https://bsky.social')); ?>" />
+        <p class="description">Enter the Bluesky server URL. Default is 'https://bsky.social'.</p>
+    </div>
+
             <div class="bluesky-settings-field">
                 <label for="bluesky_handle">Bluesky Handle</label>
                 <input type="text" id="bluesky_handle" name="bluesky_handle" value="<?php echo esc_attr(get_option('bluesky_handle')); ?>" />
@@ -85,6 +92,12 @@ function bluesky_plugin_settings_page() {
         });
     });
     </script>
+
+<div class="bluesky-settings-field">
+    <label for="bluesky_auto_post_new">Automatically Post New Posts to BlueSky</label>
+    <input type="checkbox" id="bluesky_auto_post_new" name="bluesky_auto_post_new" value="1" <?php checked(1, get_option('bluesky_auto_post_new', 'no'), true); ?> />
+    <p class="description">Enable this to automatically tick the 'Post to BlueSky' checkbox for new posts.</p>
+</div>
 
 
             <div class="bluesky-settings-field">
@@ -192,6 +205,9 @@ function bluesky_plugin_settings() {
     register_setting('bluesky-plugin-settings-group', 'bluesky_handle');
     register_setting('bluesky-plugin-settings-group', 'bluesky_password');
     register_setting('bluesky-plugin-settings-group', 'bluesky_fallback_image');
+    register_setting('bluesky-plugin-settings-group', 'bluesky_auto_post_new');
+    register_setting('bluesky-plugin-settings-group', 'bluesky_server_url');
 }
+
 
 add_action('admin_init', 'bluesky_plugin_settings');
