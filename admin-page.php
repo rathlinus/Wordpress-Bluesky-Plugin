@@ -33,7 +33,7 @@ function bluesky_plugin_settings_page() {
             <div class="bluesky-settings-field">
                 <label for="bluesky_handle">Bluesky Handle</label>
                 <input type="text" id="bluesky_handle" name="bluesky_handle" value="<?php echo esc_attr(get_option('bluesky_handle')); ?>" />
-                <p class="description">Enter your Bluesky handle.</p>
+                <p class="description">Enter your Bluesky handle. For example: 'username.bsky.social'.</p>
             </div>
             
             <div class="bluesky-settings-field">
