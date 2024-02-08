@@ -181,7 +181,7 @@ function handle_delayed_post_action($post_ID) {
             'collection' => 'app.bsky.feed.post',
             'record' => [
                 'text' => $post_title,
-                'createdAt' => current_time('Y-m-d\TH:i:s\Z'),
+                'createdAt' => gmdate('Y-m-d\TH:i:s\Z'),
                 'embed' => $embed_card,
             ],
         ]),
