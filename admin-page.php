@@ -43,16 +43,22 @@ function bluesky_plugin_settings_page() {
             </div>
 
             <div class="bluesky-settings-field">
-        <label for="bluesky_fallback_image">Fallback Image</label>
-        <input type="hidden" id="bluesky_fallback_image" name="bluesky_fallback_image" value="<?php echo esc_attr(get_option('bluesky_fallback_image')); ?>" />
-        <button type="button" class="button" id="bluesky_fallback_image_button">Select Image</button>
-        <div id="bluesky_fallback_image_preview" style="margin-top: 10px;">
-            <?php if (get_option('bluesky_fallback_image')) : ?>
-                <img src="<?php echo esc_url(get_option('bluesky_fallback_image')); ?>" style="max-width: 100px; max-height: 100px;" />
-            <?php endif; ?>
-        </div>
-        <p class="description">Select an image to be used as the fallback when a post has no featured image.</p>
-    </div>
+                <label for="bluesky_fallback_image">Fallback Image</label>
+                <input type="hidden" id="bluesky_fallback_image" name="bluesky_fallback_image" value="<?php echo esc_attr(get_option('bluesky_fallback_image')); ?>" />
+                <button type="button" class="button" id="bluesky_fallback_image_button">Select Image</button>
+                <div id="bluesky_fallback_image_preview" style="margin-top: 10px;">
+                    <?php if (get_option('bluesky_fallback_image')) : ?>
+                        <img src="<?php echo esc_url(get_option('bluesky_fallback_image')); ?>" style="max-width: 100px; max-height: 100px;" />
+                    <?php endif; ?>
+                </div>
+                <p class="description">Select an image to be used as the fallback when a post has no featured image.</p>
+            </div>
+            
+            <div class="bluesky-settings-field">
+                <label for="bluesky_textonly">Text-Only Mode</label>
+                <input type="checkbox" id="bluesky_textonly" name="bluesky_textonly" value="1" <?php checked(1, get_option('bluesky_textonly', 'no'), true); ?> />
+                <p class="description">Enable this if you want to use a text-only link card without an image. Overrides the image selected above and featured images in posts.</p>
+            </div>
 
     <script>
     jQuery(document).ready(function($){
@@ -205,6 +211,7 @@ function bluesky_plugin_settings() {
     register_setting('bluesky-plugin-settings-group', 'bluesky_handle');
     register_setting('bluesky-plugin-settings-group', 'bluesky_password');
     register_setting('bluesky-plugin-settings-group', 'bluesky_fallback_image');
+    register_setting('bluesky-plugin-settings-group', 'bluesky_textonly');
     register_setting('bluesky-plugin-settings-group', 'bluesky_auto_post_new');
     register_setting('bluesky-plugin-settings-group', 'bluesky_server_url');
 }
