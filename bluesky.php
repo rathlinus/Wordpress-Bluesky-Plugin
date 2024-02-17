@@ -2,7 +2,7 @@
 /*
 Plugin Name: Bluesky Social Integration
 Description: Seamlessly Post Your WordPress Content on BlueSky
-Version: 1.5.1
+Version: 1.5.2
 Author: Linus Rath
 */
 
@@ -25,7 +25,7 @@ function bluesky_add_custom_box() {
 }
 add_action('add_meta_boxes', 'bluesky_add_custom_box');
 
-add_action('add_meta_boxes', 'bluesky_add_custom_box');
+add_action('add_meta_boxes', 'bluesky_add_custom_box'); //remove?
 
 function bluesky_save_default_meta_value($post_id, $post, $update) {
     if ($post->post_status == 'auto-draft' && get_option('bluesky_auto_post_new', 'no') === '1') {
@@ -110,66 +110,81 @@ function handle_delayed_post_action($post_ID) {
     $post_url = get_permalink($post_ID);
 
     $image_path = '';
-
-    $post_image_url = get_the_post_thumbnail_url($post_ID, 'full');
-    if ($post_image_url === false) {
-        error_log("No featured image found for post ID $post_ID, checking for fallback image.");
-        $fallback_image_url = get_option('bluesky_fallback_image');
+    
+    $textonly_enabled = get_option('bluesky_textonly', '0'); 
+    if( $textonly_enabled === '1' ) {
         
-        if ($fallback_image_url) {
-            $post_image_url = $fallback_image_url;
-        } else {
-            error_log("No fallback image set, using placeholder.");
-            $post_image_url = plugin_dir_url(__FILE__) . 'placeholder.png';
-        }
-    }
-
-    if ($post_image_url) {
-        if (strpos($post_image_url, site_url()) !== false) {
-            $image_path = str_replace(site_url(), untrailingslashit(ABSPATH), $post_image_url);
-        } else {
-            $temp_image = download_url($post_image_url);
-            if (!is_wp_error($temp_image)) {
-                $image_path = $temp_image;
+        $embed_card = [
+            '$type' => 'app.bsky.embed.external',
+            'external' => [
+                'uri' => $post_url,
+                'title' => $post_title,
+                'description' => '',
+            ],
+        ];
+        
+    } else {
+        $post_image_url = get_the_post_thumbnail_url($post_ID, 'full');
+        if ($post_image_url === false) {
+            error_log("No featured image found for post ID $post_ID, checking for fallback image.");
+            $fallback_image_url = get_option('bluesky_fallback_image');
+            
+            if ($fallback_image_url) {
+                $post_image_url = $fallback_image_url;
             } else {
-                error_log("Error downloading image for post ID $post_ID: " . $temp_image->get_error_message());
-                $image_path = plugin_dir_path(__FILE__) . 'placeholder.png';
+                error_log("No fallback image set, using placeholder.");
+                $post_image_url = plugin_dir_url(__FILE__) . 'placeholder.png';
             }
         }
-    }
-    $image_blob = '';
-    if (file_exists($image_path)) {
-        $image_content = file_get_contents($image_path);
-        $image_mime_type = mime_content_type($image_path);
-
-        if (strlen($image_content) <= 1000000) {
-            $upload_response = wp_remote_post('https://bsky.social/xrpc/com.atproto.repo.uploadBlob', [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $token,
-                    'Content-Type' => $image_mime_type,
-                ],
-                'body' => $image_content,
-            ]);
-
-            if (!is_wp_error($upload_response)) {
-                $upload_body = json_decode(wp_remote_retrieve_body($upload_response), true);
-                $image_blob = $upload_body['blob'] ?? '';
+        
+        if ($post_image_url) {
+            if (strpos($post_image_url, site_url()) !== false) {
+                $image_path = str_replace(site_url(), untrailingslashit(ABSPATH), $post_image_url);
+            } else {
+                $temp_image = download_url($post_image_url);
+                if (!is_wp_error($temp_image)) {
+                    $image_path = $temp_image;
+                } else {
+                    error_log("Error downloading image for post ID $post_ID: " . $temp_image->get_error_message());
+                    $image_path = plugin_dir_path(__FILE__) . 'placeholder.png';
+                }
             }
         }
-
-        if ($temp_image && !$use_placeholder) {
-            unlink($temp_image);
+        $image_blob = '';
+        if (file_exists($image_path)) {
+            $image_content = file_get_contents($image_path);
+            $image_mime_type = mime_content_type($image_path);
+    
+            if (strlen($image_content) <= 1000000) {
+                $upload_response = wp_remote_post('https://bsky.social/xrpc/com.atproto.repo.uploadBlob', [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $token,
+                        'Content-Type' => $image_mime_type,
+                    ],
+                    'body' => $image_content,
+                ]);
+    
+                if (!is_wp_error($upload_response)) {
+                    $upload_body = json_decode(wp_remote_retrieve_body($upload_response), true);
+                    $image_blob = $upload_body['blob'] ?? '';
+                }
+            }
+    
+            if ($temp_image && !$use_placeholder) {
+                unlink($temp_image);
+            }
         }
+        
+        $embed_card = [
+            '$type' => 'app.bsky.embed.external',
+            'external' => [
+                'uri' => $post_url,
+                'title' => $post_title,
+                'description' => '',
+                'thumb' => $image_blob,
+            ],
+        ];
     }
-    $embed_card = [
-        '$type' => 'app.bsky.embed.external',
-        'external' => [
-            'uri' => $post_url,
-            'title' => $post_title,
-            'description' => '',
-            'thumb' => $image_blob,
-        ],
-    ];
 
     $response = wp_remote_post('https://bsky.social/xrpc/com.atproto.repo.createRecord', [
         'headers' => [
